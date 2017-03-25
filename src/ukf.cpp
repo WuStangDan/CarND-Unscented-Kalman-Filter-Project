@@ -101,8 +101,6 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   previous_timestamp_ = meas_package.timestamp_;
   
   Prediction(dt);
-
-
 }
 
 /**
@@ -214,6 +212,65 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
   You'll also need to calculate the lidar NIS.
   */
+  int n_z = 2;
+  VectorXd z_pred = VectorXd(n_z);
+  MatrixXd Zsig = MatrixXd(n_z, 2*n_aug_+1);
+
+  // Sigma points into measurement space.
+  for(int i=0; i<(2*n_aug_+1); i++)
+  {
+    double px = Xsig_pred_(0,i);
+    double py = Xsig_pred_(1,i);
+
+    Zsig(0,i) = px;
+    Zsig(1,i) = py;
+  }
+  
+  // Sate measurment prediction.
+  z_pred.fill(0);
+  for(int i=0; i<(2*n_aug_+1); i++)
+  {
+    z_pred += weights_(i) * Zsig.col(i);
+  }
+
+  // State covariance measurement prediciton.
+  MatrixXd R = MatrixXd(n_z, n_z);
+  R.fill(0);
+  R(0,0) = std_laspx_ * std_laspx_;
+  R(1,1) = std_laspy_ * std_laspy_;
+
+  MatrixXd S = MatrixXd(n_z, n_z);
+  S.fill(0);
+
+  for(int i=0; i<(2*n_aug_+1); i++)
+  {
+    MatrixXd z_diff = Zsig.col(i) - z_pred;
+    
+    S += weights_(i) * z_diff * z_diff.transpose();
+  }
+  S += R;
+  
+  // Cross correlation matrix.
+  MatrixXd Tc = MatrixXd(n_z, n_z);
+  Tc.fill(0.0);
+  
+  for(int i=0; i<(2*n_aug_+1); i++)
+  {
+    MatrixXd z_diff = Zsig.col(i) - z_pred;
+    Tc += weights_(i) * (Xsig_pred_.col(i) - x_) * z_diff.transpose();
+  }
+
+  // Kalman gain.
+  MatrixXd K = Tc * S.inverse();
+  
+  // Measurement.
+  VectorXd z = VectorXd(n_z);
+  z << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1];
+  
+  // Update state and state covariance.
+  x_ += K*(z - z_pred);
+  P_ -= K*S*K.transpose(); 
+  
 }
 
 /**
@@ -297,5 +354,5 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   // Update state and state covariance.
   x_ += K*(z - z_pred);
-  P_ += P_ - K*S*K.transpose();
+  P_ -= K*S*K.transpose();
 }
