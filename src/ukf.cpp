@@ -27,17 +27,17 @@ UKF::UKF() {
 
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
-  P_ << 0.1, 0, 0, 0, 0,
-        0, 0.1, 0, 0, 0,
-        0, 0, 0.1, 0, 0,
-        0, 0, 0, 0.1, 0,
-        0, 0, 0, 0, 0.1;
+  P_ << 1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 1, 0,
+        0, 0, 0, 0, 1;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  std_a_ = 3;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  std_yawdd_ = 0.5;
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -108,6 +108,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   // Compute time from last measurement in seconds.  
   float dt = (meas_package.timestamp_ - previous_timestamp_)/1000000.0;
   previous_timestamp_ = meas_package.timestamp_;
+
+  
   
   //std::cout << "Start Prediction" << std::endl;
   Prediction(dt);
@@ -356,7 +358,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     double phid = Xsig_pred_(4,i);
 
     Zsig(0,i) = sqrt(px*px+py*py);
-    Zsig(1,i) = phi; //atan2(py,px);
+    Zsig(1,i) = atan2(py,px);
     if(fabs(Zsig(0,i)) < 0.000001) {
       Zsig(2,i) = v;
     } else { 
